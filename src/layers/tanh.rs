@@ -1,4 +1,4 @@
-use poro::{central::Tensor, Shape};
+use poro::central::Tensor;
 use super::Module;
 
 
