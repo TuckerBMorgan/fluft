@@ -142,6 +142,7 @@ dependencies = [
 [[package]]
 name = "poro"
 version = "0.1.0"
+source = "git+https://github.com/tuckerbmorgan/hermes#75d5d9bd65cb7c91a6c209e97050a470dd6df3e6"
 dependencies = [
  "lazy_static",
  "ndarray",

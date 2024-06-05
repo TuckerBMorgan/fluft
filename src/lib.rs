@@ -4,8 +4,8 @@ mod optimizer;
 
 #[cfg(test)]
 mod tests {
-    use poro::central::*;
     use crate::layers::*;
+    use poro::central::*;
 
     #[test]
     fn linear_module() {
@@ -16,7 +16,7 @@ mod tests {
             vec![3.0, -1.0, 0.5],
             vec![0.5, 1.0, 1.0],
             vec![1.0, 1.0, -1.0],
-        ]; 
+        ];
 
         let inputs_as_tensor = Tensor::from_vec(
             inputs.iter().flatten().map(|x| *x).collect(),

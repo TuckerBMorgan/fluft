@@ -1,5 +1,5 @@
-use poro::central::*;
 use crate::layers::*;
+use poro::central::*;
 
 pub trait Model {
     fn forward(&mut self, x: &Tensor) -> Tensor;
