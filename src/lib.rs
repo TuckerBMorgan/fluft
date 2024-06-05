@@ -35,4 +35,27 @@ mod tests {
             update_parameters(-0.01);
         }
     }
+
+    #[test]
+    fn batch_norm_test () {
+
+        let batch_size = 32;
+        let block_size = 3;
+        let vocab_size = 100;
+        let n_embd = 10;
+        let n_hidden = 100;
+
+        let mut C = Tensor::randn(Shape::new(vec![vocab_size, n_embd]));
+
+        let layers: Vec<Box<dyn Module>> = vec![
+            LinearLayer::new(n_embd, n_hidden).into(),    BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
+            LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
+            LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
+            LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
+            LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
+            LinearLayer::new(n_hidden, vocab_size).into(),BatchNorm1d::new(vocab_size).into(),
+        ];
+
+
+    }
 }

@@ -32,21 +32,8 @@ impl Module for LinearLayer {
     }
 }
 
-pub struct BatchNorm {
-    gain: Tensor,
-    bias: Tensor,
-}
-
-impl Module for BatchNorm {
-    fn forward(&mut self, x: &Tensor) -> Tensor {
-        // Perform the forward pass: x * gain + bias
-        let batch_mean = x.mean(0);
-        let batch_variance = x.variance(0);
-        let normalized = (*x - batch_mean) / batch_variance;
-        normalized * self.gain + self.bias
-    }
-
-    fn get_parameters(&self) -> Vec<Tensor> {
-        vec![self.gain.clone(), self.bias.clone()]
+impl From<LinearLayer> for Box<dyn Module> {
+    fn from(layer: LinearLayer) -> Box<dyn Module> {
+        Box::new(layer)
     }
 }
