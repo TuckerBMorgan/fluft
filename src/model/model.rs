@@ -6,18 +6,18 @@ pub trait Model {
     fn get_parameters(&self) -> Vec<Tensor>;
 }
 
-pub struct LinearModel {
-    layers: Vec<Box<dyn Module>>,
+pub struct Sequential {
+    pub layers: Vec<Box<dyn Module>>,
 }
 
-impl LinearModel {
+impl Sequential {
     #[allow(unused)]
     pub fn new(layers: Vec<Box<dyn Module>>) -> Self {
-        LinearModel { layers }
+        Sequential { layers }
     }
 }
 
-impl Model for LinearModel {
+impl Model for Sequential {
     fn forward(&mut self, x: &Tensor) -> Tensor {
         let mut output = x.clone();
         for layer in &mut self.layers {
@@ -35,9 +35,15 @@ impl Model for LinearModel {
     }
 }
 
+impl From <Vec<Box<dyn Module>>> for Sequential {
+    fn from(modules: Vec<Box<dyn Module>>) -> Sequential {
+        Sequential::new(modules)
+    }
+}
+
 #[test]
 fn linear_model() {
-    let mut linear_model = LinearModel::new(vec![Box::new(LinearLayer::new(3, 1))]);
+    let mut linear_model = Sequential::new(vec![Box::new(LinearLayer::new(3, 1))]);
 
     let inputs = vec![
         vec![2.0f32, 3.0, -1.0],

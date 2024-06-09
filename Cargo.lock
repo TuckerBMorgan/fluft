@@ -180,8 +180,8 @@ dependencies = [
 
 [[package]]
 name = "poro"
-version = "0.1.0"
-source = "git+https://github.com/tuckerbmorgan/hermes#efef4b7689c038bab33da869ead347f8b1f8cc77"
+version = "0.1.1"
+source = "git+https://github.com/tuckerbmorgan/hermes#da311a6c57fcc6877cb1ee9c14443990fa25ccad"
 dependencies = [
  "cudarc",
  "lazy_static",

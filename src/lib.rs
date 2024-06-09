@@ -92,18 +92,18 @@ mod tests {
         let (_cte, _yte) = build_dataset_from_subset(&names[n2..], &stoi);
 
         let vocab_size = itos.keys().len();
-        let mut c = Tensor::randn(Shape::new(vec![vocab_size, n_embd]));
+        let mut c = Tensor::load_from_weight_file("./data/batchnorm/C.json");
         c.set_requires_grad(true);
-        let mut w1 = Tensor::randn(Shape::new(vec![n_embd * block_size, n_hidden]));
+        let mut w1 = Tensor::load_from_weight_file("./data/batchnorm/W1.json");
         w1.set_requires_grad(true);
-        let mut w2 = Tensor::randn(Shape::new(vec![n_hidden, vocab_size]));
+        let mut w2 = Tensor::load_from_weight_file("./data/batchnorm/W2.json");
         w2.set_requires_grad(true);
-        let mut b2 = Tensor::randn(Shape::new(vec![vocab_size]));
+        let mut b2 = Tensor::load_from_weight_file("./data/batchnorm/b2.json");
         b2.set_requires_grad(true);
 
-        let mut bngain = Tensor::randn(Shape::new(vec![1, n_hidden]));
+        let mut bngain = Tensor::load_from_weight_file("./data/batchnorm/bngain.json");
         bngain.set_requires_grad(true);
-        let mut bnbiases = Tensor::randn(Shape::new(vec![1, n_hidden]));
+        let mut bnbiases = Tensor::load_from_weight_file("./data/batchnorm/bnbias.json");
         bnbiases.set_requires_grad(true);
 
         let mut bnmean_running = Tensor::zeroes(Shape::new(vec![1, n_hidden]));
@@ -112,12 +112,12 @@ mod tests {
         bnvar_running.set_requires_grad(true);
 
 
-        let max_steps = 1;
+        let max_steps = 2;
         let batch_size = 32;
 
         for i in 0..max_steps {
 
-            
+            zero_all_grads();
             let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![BATCH_SIZE, 3]));
             for b in 0..BATCH_SIZE {
                 test_index_tensor.set_index([b, 0].into(), vec![xtr[b][0] as f32].into());
@@ -129,11 +129,14 @@ mod tests {
             let hpreact = reshape << w1;
 
             let bnmeani = hpreact.mean(0);
-            let bnvari = hpreact.variance(0);
+            let bnvari = hpreact.std(0);
+            let offset = hpreact - bnmeani;
+            let numer =  offset * bngain;
+            let hpreact = numer / bnvari + bnbiases;
 
-            let hpreact = (hpreact - bnmeani) / (bnvari + bnbiases);
             let h = hpreact.tanh();
-            let logits = h << w2 + b2;
+            let logits = (h << w2) + b2;
+
             
             let mut test_ytrue_onehot = Tensor::element(Shape::new(vec![BATCH_SIZE, 27]), 0.0);
             for b in 0..BATCH_SIZE {
@@ -142,11 +145,17 @@ mod tests {
 
 
             let loss = logits.cross_entropy_loss(test_ytrue_onehot);
+            println!("Loss: {}", loss.item());
+
+            loss.backward();
+            update_parameters(-0.01);
         }
+        println!("w1 grad {:?}", w1.grad());
         
         
     }
 
+    use crate::model::{Sequential, Model};
     #[test]
     fn batch_norm_test () {
 
@@ -155,16 +164,128 @@ mod tests {
         let vocab_size = 100;
         let n_embd = 10;
         let n_hidden = 100;
+        let names = read_lines("./data/bigram/names.txt");
+
+        let mut stoi = HashMap::new();
+        let mut itos = HashMap::new();
+        let mut i = 0;
+        for c in ".abcdefghijklmnopqrstuvwxyz".chars() {
+            stoi.insert(c, i);
+            itos.insert(i, c);
+            i += 1;
+        }
+        let n1 = (names.len() as f32 * 0.8f32) as usize;
+        let n2 = (names.len() as f32 * 0.9f32) as usize;
+        let (xtr, ytr) = build_dataset_from_subset(&names[..n1], &stoi);
+
+        let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![batch_size, 3]));
+        for b in 0..batch_size {
+            test_index_tensor.set_index([b, 0].into(), vec![xtr[b][0] as f32].into());
+            test_index_tensor.set_index([b, 1].into(), vec![xtr[b][1] as f32].into());
+            test_index_tensor.set_index([b, 2].into(), vec![xtr[b][2] as f32].into());
+        }
 
         let mut C = Tensor::randn(Shape::new(vec![vocab_size, n_embd]));
 
-        let layers: Vec<Box<dyn Module>> = vec![
-            LinearLayer::new(n_embd, n_hidden).into(),    BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
+        let mut linear_model: Sequential = vec![
+            LinearLayer::new(n_embd * block_size, n_hidden).into(),    BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
             LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
             LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
             LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
             LinearLayer::new(n_hidden, n_hidden).into(),  BatchNorm1d::new(n_hidden).into(), Tanh::new().into(),
             LinearLayer::new(n_hidden, vocab_size).into(),BatchNorm1d::new(vocab_size).into(),
-        ];
+        ].into();
+
+        let test = C.view(Indexable::FromTensor(test_index_tensor.tensor_id));
+        let reshape = test.reshape(Shape::new(vec![32, 30]));
+
+        let output = linear_model.forward(&reshape);
+        output.backward();
+        update_parameters(-0.01);
+
+    }
+
+    struct EmbeddingLayer {
+        weight: Tensor,
+    }
+
+    impl EmbeddingLayer {
+        pub fn new(number_of_embeddings: usize, embedding_dims: usize) -> Self {
+            EmbeddingLayer {
+                weight: Tensor::randn(Shape::new(vec![number_of_embeddings, embedding_dims])),
+            }
+        }
+    }
+
+    impl Module for EmbeddingLayer {
+        fn forward(&mut self, input: &Tensor) -> Tensor {
+            self.weight.view(Indexable::FromTensor(input.tensor_id))
+        }
+
+        fn get_parameters(&self) -> Vec<Tensor> {
+            vec![self.weight.clone()]
+        }
+    }
+
+    impl From<EmbeddingLayer> for Box<dyn Module> {
+        fn from(layer: EmbeddingLayer) -> Box<dyn Module> {
+            Box::new(layer)
+        }
+    }
+
+
+    struct FlattenConsecutive {
+        block_size: usize,
+    }
+
+    impl FlattenConsecutive {
+        pub fn new(block_size: usize) -> Self {
+            FlattenConsecutive { block_size }
+        }
+    }
+
+    impl Module for FlattenConsecutive {
+        fn forward(&mut self, input: &Tensor) -> Tensor {
+            input.reshape(Shape::new(vec![input.shape.number_of_indices / self.block_size, self.block_size]))
+        }
+
+        fn get_parameters(&self) -> Vec<Tensor> {
+            vec![]
+        }
+    }
+
+    impl From<FlattenConsecutive> for Box<dyn Module> {
+        fn from(layer: FlattenConsecutive) -> Box<dyn Module> {
+            Box::new(layer)
+        }
+    }
+
+    #[test]
+    fn wavenet_test() {
+        let n_embd = 24;
+        let n_hidden = 128;
+
+        let mut model : Sequential = vec![
+            
+            EmbeddingLayer::new(27, n_embd).into(),
+            FlattenConsecutive::new(2).into(),
+            LinearLayer::new(n_embd * 2, n_hidden).into(),
+            BatchNorm1d::new(n_hidden).into(),
+            Tanh::new().into(),
+
+            FlattenConsecutive::new(2).into(),
+            LinearLayer::new(n_hidden * 2, n_hidden).into(),
+            BatchNorm1d::new(n_hidden).into(),
+            Tanh::new().into(),
+
+            FlattenConsecutive::new(2).into(),
+            LinearLayer::new(n_hidden * 2, n_hidden).into(),
+            BatchNorm1d::new(n_hidden).into(),
+            Tanh::new().into(),
+            LinearLayer::new(n_hidden, 27).into(),
+        ].into();
+        
+
+
     }
 }

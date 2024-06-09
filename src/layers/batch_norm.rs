@@ -19,10 +19,12 @@ impl BatchNorm1d {
 impl Module for BatchNorm1d {
     fn forward(&mut self, x: &Tensor) -> Tensor {
         // Perform the forward pass: x * gain + bias
-        let batch_mean = x.mean(0);
-        let batch_variance = x.variance(0);
-        let normalized = (*x - batch_mean) / batch_variance;
-        normalized * self.gain + self.bias
+        let bnmeani = x.mean(0);
+        let bnvari = x.std(0);
+        let offset = *x - bnmeani;
+        let numer =  offset * self.gain;
+        let hpreact = numer / bnvari + self.bias;
+        return hpreact;
     }
 
     fn get_parameters(&self) -> Vec<Tensor> {
