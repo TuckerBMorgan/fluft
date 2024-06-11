@@ -15,6 +15,12 @@ impl Sequential {
     pub fn new(layers: Vec<Box<dyn Module>>) -> Self {
         Sequential { layers }
     }
+
+    pub fn set_requires_grad(&mut self, requires_grad: bool) {
+        for layer in &mut self.layers {
+            layer.set_requires_grad(requires_grad);
+        }
+    }
 }
 
 impl Model for Sequential {
@@ -35,7 +41,7 @@ impl Model for Sequential {
     }
 }
 
-impl From <Vec<Box<dyn Module>>> for Sequential {
+impl From<Vec<Box<dyn Module>>> for Sequential {
     fn from(modules: Vec<Box<dyn Module>>) -> Sequential {
         Sequential::new(modules)
     }

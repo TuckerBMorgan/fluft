@@ -1,10 +1,7 @@
-use poro::central::Tensor;
 use super::Module;
+use poro::central::Tensor;
 
-
-pub struct Tanh {
-
-}
+pub struct Tanh {}
 
 impl Tanh {
     #[allow(unused)]

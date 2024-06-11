@@ -1,5 +1,5 @@
-use poro::{central::Tensor, Shape};
 use super::Module;
+use poro::{central::Tensor, Shape};
 
 pub struct BatchNorm1d {
     gain: Tensor,
@@ -22,7 +22,7 @@ impl Module for BatchNorm1d {
         let bnmeani = x.mean(0);
         let bnvari = x.std(0);
         let offset = *x - bnmeani;
-        let numer =  offset * self.gain;
+        let numer = offset * self.gain;
         let hpreact = numer / bnvari + self.bias;
         return hpreact;
     }
