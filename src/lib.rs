@@ -126,8 +126,8 @@ mod tests {
             let reshape = test.reshape(Shape::new(vec![BATCH_SIZE, 30]));
             let hpreact = reshape << w1;
 
-            let bnmeani = hpreact.mean(0);
-            let bnvari = hpreact.std(0);
+            let bnmeani = hpreact.mean(vec![0]);
+            let bnvari = hpreact.std(vec![0]);
             let offset = hpreact - bnmeani;
             let numer = offset * bngain;
             let hpreact = numer / bnvari + bnbiases;
@@ -224,7 +224,6 @@ mod tests {
     impl Module for EmbeddingLayer {
         fn forward(&mut self, input: &Tensor) -> Tensor {
             let output_tensor = self.weight.view(Indexable::FromTensor(input.tensor_id));
-            println!("Output tensor shape: {:?}", output_tensor.shape);
             return output_tensor;
         }
 
@@ -254,13 +253,18 @@ mod tests {
             let b = input.shape.indices[0];
             let t = input.shape.indices[1];
             let c = input.shape.indices[2];
+            let new_middle = t / self.block_size;
+            let new_end = self.block_size * c;
+
             let new_input = input.reshape(Shape::new(vec![
                 b,
-                t / self.block_size,
-                self.block_size * c,
+                new_middle,
+                new_end,
             ]));
 
-            println!("New input shape: {:?}", new_input.shape);
+            if new_input.shape.indices[1] == 1 {
+                return new_input.squeeze(1);
+            }
 
             return new_input;
         }
@@ -276,10 +280,49 @@ mod tests {
         }
     }
 
+    fn build_wavenet_dataset_from_subset(
+        words: &[String],
+        stoi: &HashMap<char, usize>,
+    ) -> (Vec<[usize; 8]>, Vec<usize>) {
+        
+        let mut xs = vec![];
+        let mut ys = vec![];
+        for word in words {
+            let fixed = String::from("........") + word + ".";
+            let chars: Vec<char> = fixed.chars().collect();
+            for i in 0..chars.len() - 8 {
+                let pair = (
+                    chars[i],
+                    chars[i + 1],
+                    chars[i + 2],
+                    chars[i + 3],
+                    chars[i + 4],
+                    chars[i + 5],
+                    chars[i + 6],
+                    chars[i + 7],
+                    chars[i + 8],
+                );
+                xs.push([
+                    stoi[&pair.0],
+                    stoi[&pair.1],
+                    stoi[&pair.2],
+                    stoi[&pair.3],
+                    stoi[&pair.4],
+                    stoi[&pair.5],
+                    stoi[&pair.6],
+                    stoi[&pair.7],
+                ]);
+                ys.push(stoi[&pair.8]);
+            }
+        }
+        (xs, ys)
+    }
+
     #[test]
     fn wavenet_test() {
         let n_embd = 24;
         let n_hidden = 128;
+        let block_size = 8;
 
         let names = read_lines("./data/bigram/names.txt");
 
@@ -292,8 +335,8 @@ mod tests {
             i += 1;
         }
         let n1 = (names.len() as f32 * 0.8f32) as usize;
-        let n2 = (names.len() as f32 * 0.9f32) as usize;
-        let (xtr, ytr) = build_dataset_from_subset(&names[..n1], &stoi);
+        let n2 = (names.len() as f32 * 0.9f32) as usize;  
+        let (xtr, ytr) = build_wavenet_dataset_from_subset(&names[..n1], &stoi);
 
         let mut model: Sequential = vec![
             EmbeddingLayer::new(27, n_embd).into(),
@@ -315,15 +358,16 @@ mod tests {
 
         model.set_requires_grad(true);
 
-        let max_steps = 200000;
+        let max_steps = 10;
         let batch_size = 32;
 
         for i in 0..max_steps {
             zero_all_grads();
-            let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![batch_size, 2]));
+            let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![batch_size, 8]));
             for b in 0..batch_size {
-                test_index_tensor.set_index([b, 0].into(), vec![xtr[b][0] as f32].into());
-                test_index_tensor.set_index([b, 1].into(), vec![xtr[b][1] as f32].into());
+                for b_index in 0..block_size {
+                    test_index_tensor.set_index([b, b_index].into(), vec![xtr[b][b_index] as f32].into());
+                }
             }
             let test = model.forward(&test_index_tensor);
             let mut test_ytrue_onehot = Tensor::element(Shape::new(vec![batch_size, 27]), 0.0);
@@ -333,7 +377,7 @@ mod tests {
             let loss = test.cross_entropy_loss(test_ytrue_onehot);
             println!("Loss: {}", loss.item());
             loss.backward();
-            update_parameters(-0.01);
+            update_parameters(0.01);
         }
     }
 }

@@ -19,12 +19,27 @@ impl BatchNorm1d {
 impl Module for BatchNorm1d {
     fn forward(&mut self, x: &Tensor) -> Tensor {
         // Perform the forward pass: x * gain + bias
-        let bnmeani = x.mean(0);
-        let bnvari = x.std(0);
-        let offset = *x - bnmeani;
-        let numer = offset * self.gain;
-        let hpreact = numer / bnvari + self.bias;
-        return hpreact;
+
+        if x.shape.number_of_indices == 2 {
+            let bnmeani = x.mean(vec![0]);
+            let bnvari = x.std(vec![0]);
+            let offset = *x - bnmeani;
+            let numer = offset * self.gain;
+            let hpreact = numer / bnvari + self.bias;
+            return hpreact;    
+        }
+        else if x.shape.number_of_indices == 3 {
+            let bnmeani = x.mean(vec![0, 1]);
+            let bnvari = x.std(vec![0, 1]);
+            let offset = *x - bnmeani;
+            let numer = offset * self.gain;
+            let hpreact = numer / bnvari + self.bias;
+            return hpreact;
+        }
+        else {
+            panic!("BatchNorm1d only supports 2D and 3D tensors");
+
+        }
     }
 
     fn get_parameters(&self) -> Vec<Tensor> {
