@@ -70,9 +70,8 @@ mod tests {
 
     #[test]
     fn batch_norm_simple_test() {
-        let n_embd = 10;
+
         let n_hidden = 200;
-        let block_size = 3;
 
         const BATCH_SIZE: usize = 32;
         let names = read_lines("./data/bigram/names.txt");
@@ -91,7 +90,6 @@ mod tests {
         let (_xdev, _ydev) = build_dataset_from_subset(&names[n1..n2], &stoi);
         let (_cte, _yte) = build_dataset_from_subset(&names[n2..], &stoi);
 
-        let vocab_size = itos.keys().len();
         let mut c = Tensor::load_from_weight_file("./data/batchnorm/C.json");
         c.set_requires_grad(true);
         let mut w1 = Tensor::load_from_weight_file("./data/batchnorm/W1.json");
@@ -112,9 +110,9 @@ mod tests {
         bnvar_running.set_requires_grad(true);
 
         let max_steps = 2;
-        let batch_size = 32;
 
-        for i in 0..max_steps {
+
+        for _i in 0..max_steps {
             zero_all_grads();
             let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![BATCH_SIZE, 3]));
             for b in 0..BATCH_SIZE {
@@ -168,8 +166,8 @@ mod tests {
             i += 1;
         }
         let n1 = (names.len() as f32 * 0.8f32) as usize;
-        let n2 = (names.len() as f32 * 0.9f32) as usize;
-        let (xtr, ytr) = build_dataset_from_subset(&names[..n1], &stoi);
+
+        let (xtr, _ytr) = build_dataset_from_subset(&names[..n1], &stoi);
 
         let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![batch_size, 3]));
         for b in 0..batch_size {
@@ -178,7 +176,7 @@ mod tests {
             test_index_tensor.set_index([b, 2].into(), vec![xtr[b][2] as f32].into());
         }
 
-        let mut C = Tensor::randn(Shape::new(vec![vocab_size, n_embd]));
+        let c = Tensor::randn(Shape::new(vec![vocab_size, n_embd]));
 
         let mut linear_model: Sequential = vec![
             LinearLayer::new(n_embd * block_size, n_hidden).into(),
@@ -201,7 +199,7 @@ mod tests {
         ]
         .into();
 
-        let test = C.view(Indexable::FromTensor(test_index_tensor.tensor_id));
+        let test = c.view(Indexable::FromTensor(test_index_tensor.tensor_id));
         let reshape = test.reshape(Shape::new(vec![32, 30]));
 
         let output = linear_model.forward(&reshape);
@@ -330,7 +328,6 @@ mod tests {
             i += 1;
         }
         let n1 = (names.len() as f32 * 0.8f32) as usize;
-        let n2 = (names.len() as f32 * 0.9f32) as usize;
         let (xtr, ytr) = build_wavenet_dataset_from_subset(&names[..n1], &stoi);
 
         let mut model: Sequential = vec![
@@ -356,7 +353,7 @@ mod tests {
         let max_steps = 10;
         let batch_size = 32;
 
-        for i in 0..max_steps {
+        for _i in 0..max_steps {
             zero_all_grads();
             let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![batch_size, 8]));
             for b in 0..batch_size {

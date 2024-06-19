@@ -16,6 +16,7 @@ impl Sequential {
         Sequential { layers }
     }
 
+    #[allow(unused)]
     pub fn set_requires_grad(&mut self, requires_grad: bool) {
         for layer in &mut self.layers {
             layer.set_requires_grad(requires_grad);
