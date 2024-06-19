@@ -256,11 +256,7 @@ mod tests {
             let new_middle = t / self.block_size;
             let new_end = self.block_size * c;
 
-            let new_input = input.reshape(Shape::new(vec![
-                b,
-                new_middle,
-                new_end,
-            ]));
+            let new_input = input.reshape(Shape::new(vec![b, new_middle, new_end]));
 
             if new_input.shape.indices[1] == 1 {
                 return new_input.squeeze(1);
@@ -284,7 +280,6 @@ mod tests {
         words: &[String],
         stoi: &HashMap<char, usize>,
     ) -> (Vec<[usize; 8]>, Vec<usize>) {
-        
         let mut xs = vec![];
         let mut ys = vec![];
         for word in words {
@@ -335,7 +330,7 @@ mod tests {
             i += 1;
         }
         let n1 = (names.len() as f32 * 0.8f32) as usize;
-        let n2 = (names.len() as f32 * 0.9f32) as usize;  
+        let n2 = (names.len() as f32 * 0.9f32) as usize;
         let (xtr, ytr) = build_wavenet_dataset_from_subset(&names[..n1], &stoi);
 
         let mut model: Sequential = vec![
@@ -366,7 +361,8 @@ mod tests {
             let mut test_index_tensor = Tensor::zeroes(Shape::new(vec![batch_size, 8]));
             for b in 0..batch_size {
                 for b_index in 0..block_size {
-                    test_index_tensor.set_index([b, b_index].into(), vec![xtr[b][b_index] as f32].into());
+                    test_index_tensor
+                        .set_index([b, b_index].into(), vec![xtr[b][b_index] as f32].into());
                 }
             }
             let test = model.forward(&test_index_tensor);

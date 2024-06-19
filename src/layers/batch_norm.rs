@@ -1,8 +1,12 @@
 use super::Module;
 use poro::{central::Tensor, Shape};
 
+/// This struct represents a Batch Normalization layer for 1D tensors.
+/// It is used to normalize the activations of the previous layer at each batch.
 pub struct BatchNorm1d {
+    /// The gain tensor of the BatchNorm1d layer.
     gain: Tensor,
+    /// The bias tensor of the BatchNorm1d layer.
     bias: Tensor,
 }
 
@@ -19,26 +23,22 @@ impl BatchNorm1d {
 impl Module for BatchNorm1d {
     fn forward(&mut self, x: &Tensor) -> Tensor {
         // Perform the forward pass: x * gain + bias
-
         if x.shape.number_of_indices == 2 {
             let bnmeani = x.mean(vec![0]);
             let bnvari = x.std(vec![0]);
             let offset = *x - bnmeani;
             let numer = offset * self.gain;
             let hpreact = numer / bnvari + self.bias;
-            return hpreact;    
-        }
-        else if x.shape.number_of_indices == 3 {
+            return hpreact;
+        } else if x.shape.number_of_indices == 3 {
             let bnmeani = x.mean(vec![0, 1]);
             let bnvari = x.std(vec![0, 1]);
             let offset = *x - bnmeani;
             let numer = offset * self.gain;
             let hpreact = numer / bnvari + self.bias;
             return hpreact;
-        }
-        else {
+        } else {
             panic!("BatchNorm1d only supports 2D and 3D tensors");
-
         }
     }
 
